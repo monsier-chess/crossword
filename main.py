@@ -3,6 +3,7 @@ from typing import Generator, Any, DefaultDict
 from enum import Enum
 from collections import defaultdict
 from copy import deepcopy
+from random import shuffle
 
 # Входные файлы
 matrix_filename = 'test_matrix.txt'
@@ -14,9 +15,9 @@ Code = Enum('Code', ['EMPTY', 'BLOCK', 'START'])
 # Таблица интерпретаций символов, для конфигурации
 ParseTable = dict[str, Code]
 DEFAULT_PARSE_TABLE = {
-    '_': Code.EMPTY,
-    '#': Code.BLOCK,
-    '*': Code.START
+    '_': Code.EMPTY, # 0
+    '#': Code.BLOCK, # 1
+    '*': Code.START  # 2
 }
 
 # Типы данных аргументов (используются для аннотаций)
@@ -108,6 +109,8 @@ def read_vocabular_from_file(filename: str,
         vocabular_file.close()
         if not vocabular_set:
             raise ValueError('File lines contain only whitespace characters')
+        
+        shuffle(vocabular)
         return vocabular
     
     except FileNotFoundError:
@@ -430,6 +433,10 @@ def run(matrix: Matrix, vocabular: Vocabular) -> None:
     used = [False] * len(vocabular)
     word_list.sort(key= lambda word: (len(cross_table[word]), word[1]), reverse=True)
     solution = solve(vocabular, super_vocabular, cross_table, mask_table, word_list, used, result)
+    
+    if len(solution) < len(word_list):
+        print('Для указанных входных данных не найдено ни одного полного решения')
+        return
     
     print('Использованы слова:\n')
     for i, word in enumerate(solution, start=1):
