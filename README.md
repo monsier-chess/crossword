@@ -14,9 +14,9 @@
 # Таблица интерпретаций символов, для конфигурации
 ParseTable = dict[str, Code]
 DEFAULT_PARSE_TABLE = {
-    '_': Code.EMPTY,
-    '#': Code.BLOCK,
-    '*': Code.START
+    '_': Code.EMPTY, # 0
+    '#': Code.BLOCK, # 1
+    '*': Code.START  # 2
 }
 ```
 
