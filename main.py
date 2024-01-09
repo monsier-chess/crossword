@@ -67,7 +67,6 @@ class SuperVocabular:
         ind1 = (length * (length - 1)) // 2
         ind2 = index + 2
         ind3 = self.alf.index(letter)
-
         return self.arr[(ind1 + ind2) * len(self.alf) + ind3]
 
 # Алфавит и настраиваемый параметр чувствительности к регистру
@@ -335,35 +334,46 @@ def get_from_super(super_vocabular, mask, used):
             result.append(num)
         return result
 
-    heap = []
     for array_index, array in enumerate(arrays):
         if not array:
             return []
-        for i in range(len(array)):
-            heappush(heap, (array[i], array_index))
 
-    result = []
-    counters = [0] * len(arrays)    
+    res = set(arrays[0])
+    for array in arrays[1:]:
+        res &= set(array)
+    res = list(res)
+    return res
 
-    while heap:
-        value = arrays[0][counters[0]]
-        if not used[value]:    
-            for array_index, counter in enumerate(counters):
-                if arrays[array_index][counter] != value:
-                    break
-            else:
-                result.append(value)
-        
-        minval, array_index = heappop(heap)
-        counters[array_index] += 1
-        if counters[array_index] >= len(arrays[array_index]):
-            return result
+# Визуализация результата
+def show(solution: dict[Word, int], word_list: list[Word], matrix: Matrix, vocabular: Vocabular) -> None:
+    if len(solution) < len(word_list):
+        print('Для указанных входных данных не найдено ни одного полного решения')
+        return
+    
+    print('Использованы слова:\n')
+    for i, word in enumerate(solution, start=1):
+        option = solution[word]
+        if option:
+            print(f' {i}. {vocabular[option]}')
 
-        while heap and heap[0][0] == minval:
-            minval, array_index = heappop(heap)
-            counters[array_index] += 1
-            if counters[array_index] >= len(arrays[array_index]):
-                return result
+    print('\nЗаполненный кроссворд:\n')
+    visual = [['.' for j in range(len(matrix[i]))] for i in range(len(matrix))]
+    for word, string_index in solution.items():
+        ij, lenght, is_horizontal = word
+        i, j = ij
+        if not string_index:
+            continue
+        stirng = vocabular[string_index]
+        if is_horizontal:
+            for l in range(lenght):
+                visual[i][j + l] = stirng[l]
+        else:
+            for l in range(lenght):
+                visual[i+l][j] = stirng[l]
+    
+    for line in visual:
+        print(' ', *line)
+    print()
 
 # Функция решения задачи. Подход рекурсивный.
 # На каждом шаге выбирается слово для перебора. По его маске из индекса (суперсловаря) извлекаются подходящие варианты
@@ -371,7 +381,6 @@ def get_from_super(super_vocabular, mask, used):
 # Если достигнуто последнее слово и оно решено, то возвращается результат
 # Иначе слово помечается как не использованное, текущий результат обновляется, маски заменяются обратно, следующая опция
 # В случае неудачи возвращается пустой словарь
-
 def solve(vocalubar: Vocabular,
           super_vocabular: SuperVocabular,
           cross_table: CrossTable,
@@ -383,7 +392,7 @@ def solve(vocalubar: Vocabular,
     
     if step == len(word_list):
         return result
-
+    
     word = word_list[step]
     mask = mask_table[word]
     options = get_from_super(super_vocabular, mask, used)
@@ -392,8 +401,6 @@ def solve(vocalubar: Vocabular,
         used[option] = True
         bad_option = False
         string = vocalubar[option]
-        if word[1] != len(string):
-            bad_option = True
         if not bad_option: 
             for other_word, letter_index in cross_table[word].items():
                 other_letter_index = cross_table[other_word][word]
@@ -418,6 +425,16 @@ def solve(vocalubar: Vocabular,
     return {}
 
 
+# Пересортировка слов, определяющая порядок обхода
+def walk_sort(new_word_list: list[Word], word_list: list[Word], cross_table: CrossTable) -> None:
+    cross_func = lambda word: (len(cross_table[word]), word[1])
+    last_word = new_word_list[-1]
+    for child in sorted(cross_table[last_word].keys(), key=cross_func):
+        if child in new_word_list:
+            continue
+        new_word_list.append(child)
+        walk_sort(new_word_list, word_list, cross_table) 
+    
 # Подготовка данных для рекурсии и запуск рекурсивного решения
 def run(matrix: Matrix, vocabular: Vocabular) -> None:
     cross_table, word_list = process_matrix(matrix)
@@ -429,36 +446,18 @@ def run(matrix: Matrix, vocabular: Vocabular) -> None:
         length = word[1]
         mask_table[word] = ['*'] * length
         result[word] = None
-
+    
+    new_word_list = []
+    cross_func = lambda word: (len(cross_table[word]), word[1])
+    
+    for word in sorted(word_list, key=cross_func):
+        if word not in new_word_list:
+            new_word_list.append(word)
+            walk_sort(new_word_list, word_list, cross_table)
+    
     used = [False] * len(vocabular)
-    word_list.sort(key= lambda word: (len(cross_table[word]), word[1]), reverse=True)
-    solution = solve(vocabular, super_vocabular, cross_table, mask_table, word_list, used, result)
-    
-    if len(solution) < len(word_list):
-        print('Для указанных входных данных не найдено ни одного полного решения')
-        return
-    
-    print('Использованы слова:\n')
-    for i, word in enumerate(solution, start=1):
-        option = solution[word]
-        print(f' {i}. {vocabular[option]}')
-
-    print('\nЗаполненный кроссворд:\n')
-    visual = [['.' for j in range(len(matrix[i]))] for i in range(len(matrix))]
-    for word, string_index in solution.items():
-        ij, lenght, is_horizontal = word
-        i, j = ij
-        stirng = vocabular[string_index]
-        if is_horizontal:
-            for l in range(lenght):
-                visual[i][j + l] = stirng[l]
-        else:
-            for l in range(lenght):
-                visual[i+l][j] = stirng[l]
-    
-    for line in visual:
-        print(' ', *line)
-    print()
+    solution = solve(vocabular, super_vocabular, cross_table, mask_table, new_word_list, used, result)
+    show(solution, new_word_list, matrix, vocabular)
 
 # Чтение данных
 matrix = read_matrix_from_file(matrix_filename)
